@@ -13,9 +13,16 @@ export interface SleepDuration {
   minutes: number;
 }
 
+export interface CaloriesData {
+  total: number | null;           // 總消耗卡路里 (BMR + 活動)
+  active: number | null;          // 活動消耗卡路里
+  bmr: number | null;             // 基礎代謝卡路里 (Basal Metabolic Rate)
+}
+
 export interface DailyData {
   date: string;
   steps: number | null;
+  calories: CaloriesData;
   heartRate: {
     restingHeartRate: number | null;
     maxHeartRate: number | null;
@@ -32,6 +39,15 @@ export interface DailyData {
   hydration: number | null;
 }
 
+export interface ActivityCalories {
+  date: string;
+  activityName: string;
+  activityType: string;
+  calories: number;
+  bmrCalories: number;
+  duration: number; // seconds
+}
+
 export interface DateRangeData {
   fetchedAt: string;
   dateRange: {
@@ -41,17 +57,21 @@ export interface DateRangeData {
   };
   dailyData: DailyData[];
   activities: unknown[];
+  activityCaloriesByDate: { [date: string]: ActivityCalories[] };
 }
 
 // Extended GarminConnect type to include methods not in type definitions
 interface ExtendedGarminConnect extends GarminConnect {
   exportTokenToFile(path: string): void;
   loadTokenByFile(path: string): void;
+  get<T>(url: string, data?: any): Promise<T>;
 }
 
 export class GarminClient {
   private client: ExtendedGarminConnect;
   private tokenPath: string;
+  private displayName: string | null = null;
+  private readonly API_BASE = 'https://connectapi.garmin.com';
 
   constructor(credentials: GarminCredentials) {
     this.client = new GarminConnect({
@@ -178,6 +198,42 @@ export class GarminClient {
     } catch (error) {
       // Hydration data might not be available
       return 0;
+    }
+  }
+
+  /**
+   * Get user display name (cached)
+   */
+  private async getDisplayName(): Promise<string> {
+    if (this.displayName) {
+      return this.displayName;
+    }
+    const profile = await this.client.getUserProfile() as any;
+    const name = profile.displayName || profile.userName || '';
+    this.displayName = name;
+    return name;
+  }
+
+  /**
+   * Get daily calories data (total, active, BMR)
+   * @param date - Date to get calories for (defaults to today)
+   */
+  async getDailyCalories(date?: Date): Promise<CaloriesData> {
+    const dateString = this.formatDate(date || new Date());
+    const displayName = await this.getDisplayName();
+    
+    try {
+      const url = `${this.API_BASE}/usersummary-service/usersummary/daily/${displayName}`;
+      const result = await this.client.get<any>(url, { params: { calendarDate: dateString } });
+      
+      return {
+        total: result?.totalKilocalories ?? null,
+        active: result?.activeKilocalories ?? null,
+        bmr: result?.bmrKilocalories ?? null,
+      };
+    } catch (error) {
+      // Calories data might not be available
+      return { total: null, active: null, bmr: null };
     }
   }
 
@@ -334,20 +390,33 @@ export class GarminClient {
   }
 
   /**
+   * Safely get daily calories with error handling
+   */
+  private async safeGetCalories(date: Date): Promise<CaloriesData> {
+    try {
+      return await this.getDailyCalories(date);
+    } catch {
+      return { total: null, active: null, bmr: null };
+    }
+  }
+
+  /**
    * Get data for a single date
    */
   private async getDailyDataForDate(date: Date): Promise<DailyData> {
-    const [steps, heartRate, sleep, weight, hydration] = await Promise.all([
+    const [steps, heartRate, sleep, weight, hydration, calories] = await Promise.all([
       this.safeGetSteps(date),
       this.safeGetHeartRate(date),
       this.safeGetSleepData(date),
       this.safeGetWeight(date),
       this.safeGetHydration(date),
+      this.safeGetCalories(date),
     ]);
 
     return {
       date: this.formatDate(date),
       steps,
+      calories,
       heartRate,
       sleep,
       weight,
@@ -418,6 +487,26 @@ export class GarminClient {
       return activityDate >= fromDate && activityDate <= toDate;
     });
 
+    // Group activity calories by date
+    const activityCaloriesByDate: { [date: string]: ActivityCalories[] } = {};
+    for (const activity of filteredActivities as any[]) {
+      const activityDate = activity.startTimeLocal?.split(' ')[0];
+      if (!activityDate) continue;
+
+      if (!activityCaloriesByDate[activityDate]) {
+        activityCaloriesByDate[activityDate] = [];
+      }
+
+      activityCaloriesByDate[activityDate].push({
+        date: activityDate,
+        activityName: activity.activityName || 'Unknown',
+        activityType: activity.activityType?.typeKey || 'unknown',
+        calories: activity.calories || 0,
+        bmrCalories: activity.bmrCalories || 0,
+        duration: activity.duration || 0,
+      });
+    }
+
     return {
       fetchedAt: new Date().toISOString(),
       dateRange: {
@@ -427,6 +516,7 @@ export class GarminClient {
       },
       dailyData: dailyData.reverse(), // Return in chronological order (oldest first)
       activities: filteredActivities,
+      activityCaloriesByDate,
     };
   }
 

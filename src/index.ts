@@ -84,7 +84,60 @@ function printDataSummary(data: DateRangeData): void {
   const stepsData = data.dailyData.filter(d => d.steps !== null).map(d => d.steps as number);
   const sleepData = data.dailyData.filter(d => d.sleep.durationSeconds !== null).map(d => d.sleep.durationSeconds as number);
   const hrData = data.dailyData.filter(d => d.heartRate.restingHeartRate !== null).map(d => d.heartRate.restingHeartRate as number);
+  const totalCaloriesData = data.dailyData.filter(d => d.calories.total !== null).map(d => d.calories.total as number);
+  const activeCaloriesData = data.dailyData.filter(d => d.calories.active !== null).map(d => d.calories.active as number);
 
+  // === Calories Section ===
+  console.log(`\n${colors.cyan}Calories (Total):${colors.reset}`);
+  if (totalCaloriesData.length > 0) {
+    const avgTotal = Math.round(totalCaloriesData.reduce((a, b) => a + b, 0) / totalCaloriesData.length);
+    const maxTotal = Math.max(...totalCaloriesData);
+    const minTotal = Math.min(...totalCaloriesData);
+    const totalSum = totalCaloriesData.reduce((a, b) => a + b, 0);
+    console.log(`  Average: ${avgTotal.toLocaleString()} kcal/day`);
+    console.log(`  Max: ${maxTotal.toLocaleString()} kcal`);
+    console.log(`  Min: ${minTotal.toLocaleString()} kcal`);
+    console.log(`  Total burned: ${totalSum.toLocaleString()} kcal`);
+    console.log(`  Days with data: ${totalCaloriesData.length}/${data.dateRange.days}`);
+  } else {
+    console.log(`  No calorie data available`);
+  }
+
+  console.log(`\n${colors.cyan}Calories (Active Only):${colors.reset}`);
+  if (activeCaloriesData.length > 0) {
+    const avgActive = Math.round(activeCaloriesData.reduce((a, b) => a + b, 0) / activeCaloriesData.length);
+    const maxActive = Math.max(...activeCaloriesData);
+    const totalActive = activeCaloriesData.reduce((a, b) => a + b, 0);
+    console.log(`  Average: ${avgActive.toLocaleString()} kcal/day`);
+    console.log(`  Max: ${maxActive.toLocaleString()} kcal`);
+    console.log(`  Total active: ${totalActive.toLocaleString()} kcal`);
+  }
+
+  // Activity calories breakdown
+  const activityCaloriesTotal = Object.values(data.activityCaloriesByDate || {})
+    .flat()
+    .reduce((sum, a) => sum + a.calories, 0);
+  
+  if (activityCaloriesTotal > 0) {
+    console.log(`\n${colors.cyan}Activity Calories Breakdown:${colors.reset}`);
+    console.log(`  Total from activities: ${activityCaloriesTotal.toLocaleString()} kcal`);
+    
+    // Group by activity type
+    const caloriesByType: { [type: string]: number } = {};
+    Object.values(data.activityCaloriesByDate || {})
+      .flat()
+      .forEach(a => {
+        caloriesByType[a.activityType] = (caloriesByType[a.activityType] || 0) + a.calories;
+      });
+    
+    Object.entries(caloriesByType)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([type, calories]) => {
+        console.log(`    - ${type}: ${calories.toLocaleString()} kcal`);
+      });
+  }
+
+  // === Steps Section ===
   console.log(`\n${colors.cyan}Steps:${colors.reset}`);
   if (stepsData.length > 0) {
     const avgSteps = Math.round(stepsData.reduce((a, b) => a + b, 0) / stepsData.length);
@@ -182,6 +235,21 @@ async function runInteractiveMode(garmin: GarminClient): Promise<void> {
     console.log(`${colors.cyan}Today's Steps: ${steps.toLocaleString()}${colors.reset}`);
   } catch {
     console.log(`${colors.yellow}Steps data not available${colors.reset}`);
+  }
+
+  // Get Calories
+  logSection('Calories');
+  try {
+    const calories = await garmin.getDailyCalories();
+    if (calories.total !== null) {
+      console.log(`${colors.cyan}Total Calories: ${calories.total.toLocaleString()} kcal${colors.reset}`);
+      console.log(`${colors.cyan}Active Calories: ${(calories.active ?? 0).toLocaleString()} kcal${colors.reset}`);
+      console.log(`${colors.cyan}BMR Calories: ${(calories.bmr ?? 0).toLocaleString()} kcal${colors.reset}`);
+    } else {
+      console.log(`${colors.yellow}No calorie data recorded for today${colors.reset}`);
+    }
+  } catch {
+    console.log(`${colors.yellow}Calorie data not available${colors.reset}`);
   }
 
   // Get Heart Rate
