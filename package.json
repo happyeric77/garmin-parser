@@ -6,6 +6,8 @@
     "start": "ts-node src/index.ts",
     "build": "tsc",
     "dev": "ts-node src/index.ts",
+    "serve": "node dist/server.js",
+    "dev:server": "ts-node src/server.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -20,10 +22,12 @@
   "dependencies": {
     "cli-progress": "^3.12.0",
     "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "garmin-connect": "^1.6.2"
   },
   "devDependencies": {
     "@types/cli-progress": "^3.11.6",
+    "@types/express": "^5.0.6",
     "@types/node": "^25.0.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
