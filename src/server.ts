@@ -141,7 +141,7 @@ app.get('/api/daily', requireGarminClient, async (req: Request, res: Response) =
     // Fetch all daily data in parallel
     const [steps, calories, heartRate, sleep, weight, hydration] = await Promise.all([
       garminClient!.getSteps(date).catch(() => null),
-      garminClient!.getDailyCalories(date).catch(() => ({ total: null, active: null, bmr: null })),
+      garminClient!.getDailyCalories(date).catch(() => ({ total: null, active: null, bmr: null, consumed: null })),
       garminClient!.getHeartRate(date).catch(() => null),
       garminClient!.getSleepData(date).catch(() => null),
       garminClient!.getDailyWeightData(date).catch(() => null),
