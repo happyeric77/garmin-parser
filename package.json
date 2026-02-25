@@ -16,9 +16,9 @@
     "health",
     "api"
   ],
-  "author": "",
-  "license": "ISC",
-  "description": "POC for fetching Garmin Connect data using TypeScript",
+  "author": "Eric Lee",
+  "license": "MIT",
+  "description": "TypeScript client and REST API for fetching health and fitness data from Garmin Connect",
   "dependencies": {
     "cli-progress": "^3.12.0",
     "dotenv": "^17.2.3",
