@@ -53,9 +53,9 @@ export interface GarminWeightData {
 }
 
 export interface CaloriesData {
-  total: number | null;           // 總消耗卡路里 (BMR + 活動)
-  active: number | null;          // 活動消耗卡路里
-  bmr: number | null;             // 基礎代謝卡路里 (Basal Metabolic Rate)
+  total: number | null;           // Total calories burned (BMR + active)
+  active: number | null;          // Active calories burned
+  bmr: number | null;             // Basal Metabolic Rate calories
 }
 
 export interface DailyData {
