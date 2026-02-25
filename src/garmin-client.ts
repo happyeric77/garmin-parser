@@ -56,6 +56,7 @@ export interface CaloriesData {
   total: number | null;           // Total calories burned (BMR + active)
   active: number | null;          // Active calories burned
   bmr: number | null;             // Basal Metabolic Rate calories
+  consumed: number | null;        // Consumed calories (from MyFitnessPal etc.)
 }
 
 export interface DailyData {
@@ -272,10 +273,11 @@ export class GarminClient {
         total: result?.totalKilocalories ?? null,
         active: result?.activeKilocalories ?? null,
         bmr: result?.bmrKilocalories ?? null,
+        consumed: result?.consumedKilocalories ?? null,
       };
     } catch (error) {
       // Calories data might not be available
-      return { total: null, active: null, bmr: null };
+      return { total: null, active: null, bmr: null, consumed: null };
     }
   }
 
@@ -455,7 +457,7 @@ export class GarminClient {
     try {
       return await this.getDailyCalories(date);
     } catch {
-      return { total: null, active: null, bmr: null };
+      return { total: null, active: null, bmr: null, consumed: null };
     }
   }
 
