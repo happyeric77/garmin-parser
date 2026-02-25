@@ -73,6 +73,8 @@ export interface DailyData {
     lightSleepSeconds: number | null;
     remSleepSeconds: number | null;
     awakeSleepSeconds: number | null;
+    avgOvernightHrv: number | null;
+    hrvStatus: string | null;
   };
   weight: number | null;
   hydration: number | null;
@@ -394,6 +396,8 @@ export class GarminClient {
     lightSleepSeconds: number | null;
     remSleepSeconds: number | null;
     awakeSleepSeconds: number | null;
+    avgOvernightHrv: number | null;
+    hrvStatus: string | null;
   }> {
     try {
       const sleep = await this.client.getSleepData(date) as any;
@@ -404,6 +408,8 @@ export class GarminClient {
         lightSleepSeconds: daily?.lightSleepSeconds ?? null,
         remSleepSeconds: daily?.remSleepSeconds ?? null,
         awakeSleepSeconds: daily?.awakeSleepSeconds ?? null,
+        avgOvernightHrv: sleep?.avgOvernightHrv ?? null,
+        hrvStatus: sleep?.hrvStatus ?? null,
       };
     } catch {
       return {
@@ -412,6 +418,8 @@ export class GarminClient {
         lightSleepSeconds: null,
         remSleepSeconds: null,
         awakeSleepSeconds: null,
+        avgOvernightHrv: null,
+        hrvStatus: null,
       };
     }
   }
