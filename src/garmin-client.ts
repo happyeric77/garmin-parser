@@ -13,6 +13,45 @@ export interface SleepDuration {
   minutes: number;
 }
 
+export interface GarminDateWeight {
+  samplePk: number;
+  date: number;
+  calendarDate: string;
+  weight: number;              // in grams
+  bmi: number | null;
+  bodyFat: number | null;
+  bodyWater: number | null;
+  boneMass: number | null;
+  muscleMass: number | null;
+  physiqueRating: number | null;
+  visceralFat: number | null;
+  metabolicAge: number | null;
+  sourceType: string;
+  timestampGMT: number;
+  weightDelta: number;
+}
+
+export interface GarminWeightTotalAverage {
+  from: number;
+  until: number;
+  weight: number;              // in grams
+  bmi: number | null;
+  bodyFat: number | null;
+  bodyWater: number | null;
+  boneMass: number | null;
+  muscleMass: number | null;
+  physiqueRating: number | null;
+  visceralFat: number | null;
+  metabolicAge: number | null;
+}
+
+export interface GarminWeightData {
+  startDate: string;
+  endDate: string;
+  dateWeightList: GarminDateWeight[];
+  totalAverage: GarminWeightTotalAverage;
+}
+
 export interface CaloriesData {
   total: number | null;           // 總消耗卡路里 (BMR + 活動)
   active: number | null;          // 活動消耗卡路里
@@ -176,12 +215,13 @@ export class GarminClient {
   }
 
   /**
-   * Get daily weight data
+   * Get daily weight data (in kg)
    * @param date - Date to get weight for (defaults to today)
    */
   async getDailyWeightData(date?: Date): Promise<number> {
     try {
-      return await this.client.getDailyWeightData(date);
+      const weightData = await this.client.getDailyWeightData(date) as GarminWeightData;
+      return this.parseWeightInKg(weightData) ?? 0;
     } catch (error) {
       // Weight data might not be available
       return 0;
@@ -293,6 +333,21 @@ export class GarminClient {
   }
 
   /**
+   * Helper to extract weight in kg from GarminWeightData
+   * Garmin API returns weight in grams, this converts to kg with 2 decimal places
+   * @returns weight in kg, or null if no valid weight data
+   */
+  private parseWeightInKg(weightData: GarminWeightData): number | null {
+    const weightInGrams = weightData.totalAverage?.weight
+      ?? weightData.dateWeightList?.[0]?.weight
+      ?? null;
+    if (typeof weightInGrams === 'number' && weightInGrams > 0) {
+      return Math.round((weightInGrams / 1000) * 100) / 100;
+    }
+    return null;
+  }
+
+  /**
    * Helper to add delay between API calls to avoid rate limiting
    */
   private delay(ms: number): Promise<void> {
@@ -366,12 +421,8 @@ export class GarminClient {
    */
   private async safeGetWeight(date: Date): Promise<number | null> {
     try {
-      const weight = await this.client.getDailyWeightData(date) as any;
-      // Weight is returned in grams, convert to kg
-      if (typeof weight === 'number' && weight > 0) {
-        return weight;
-      }
-      return null;
+      const weightData = await this.client.getDailyWeightData(date) as GarminWeightData;
+      return this.parseWeightInKg(weightData);
     } catch {
       return null;
     }
